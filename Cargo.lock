@@ -42,7 +42,6 @@ name = "derive_tagged_builder"
 version = "0.1.0"
 dependencies = [
  "derive_tagged_builder_macro",
- "expect-test",
 ]
 
 [[package]]
@@ -59,6 +58,14 @@ dependencies = [
  "runtime-format",
  "self_cell",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "derive_tagged_builder_tests"
+version = "0.1.0"
+dependencies = [
+ "derive_tagged_builder",
+ "expect-test",
 ]
 
 [[package]]

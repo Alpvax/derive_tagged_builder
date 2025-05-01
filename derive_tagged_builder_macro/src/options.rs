@@ -19,7 +19,7 @@ pub(crate) enum FnGenerationSpec {
     /// Generate function with the name defined by the format string.
     Format(ecow::EcoString),
 }
-#[allow(dead_code)]//XXX
+#[allow(dead_code)] //XXX
 pub(crate) trait NameFormatter<'a> {
     fn make_name_tokens<'s: 'a, 'p>(&'s self, prop: &'p Ident) -> TokenStream {
         self.make_name(prop).into_token_stream()
@@ -53,7 +53,10 @@ impl runtime_format::FormatKey for IdentFmt<'_> {
     ) -> Result<(), runtime_format::FormatKeyError> {
         // #[cfg(feature = "")]
         if self.0.fmt(f).is_err() {
-            abort_call_site!("Error formatting IdentFmt({}) as FormatKey with \"{key}\"", self.0);
+            abort_call_site!(
+                "Error formatting IdentFmt({}) as FormatKey with \"{key}\"",
+                self.0
+            );
         }
         Ok(())
         // match key {
@@ -77,7 +80,7 @@ impl<'a> NameFormatter<'a> for runtime_format::ParsedFmt<'a> {
     }
 }
 impl FnGenerationSpec {
-    #[allow(dead_code)]//XXX
+    #[allow(dead_code)] //XXX
     pub(crate) fn ident_builder(&self) -> Box<dyn NameFormatter + '_> {
         match self {
             FnGenerationSpec::Disabled => Box::new(None),
@@ -169,6 +172,14 @@ pub(crate) enum GenericArg {
     // Const(ConstParam),
     Const(Ident, Type),
 }
+impl GenericArg {
+    pub(crate) fn get_ident(&self) -> &Ident {
+        match self {
+            GenericArg::Name(ident) => ident,
+            GenericArg::Const(ident, _) => ident,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum FieldRequirement {
@@ -197,7 +208,7 @@ impl<T> Initialise<T> {
     fn new() -> Self {
         Self(None, Vec::new())
     }
-    #[allow(dead_code)]//XXX
+    #[allow(dead_code)] //XXX
     fn set(&mut self, value: T) {
         if self.0.is_some() {
             self.1

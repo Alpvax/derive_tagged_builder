@@ -1,0 +1,10 @@
+[package]
+name = "derive_tagged_builder_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+derive_tagged_builder = { version = "=0.1.0", path = "../derive_tagged_builder" }
+
+[dev-dependencies]
+expect-test = "1.5.1"

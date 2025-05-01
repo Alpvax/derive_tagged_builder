@@ -246,7 +246,6 @@ fn derive_input() {
     "#]].assert_debug_eq(&ast);
 }
 
-
 #[test]
 fn parse_fields() {
     let fields: syn::FieldsNamed = syn::parse_quote! {{
@@ -344,7 +343,14 @@ fn parse_fields() {
                 },
             },
         ]
-    "#]].assert_debug_eq(&darling::ast::Fields::<super::options::FieldOptions>::try_from(&syn::Fields::Named(fields)).expect("error converting fields").fields);
+    "#]]
+    .assert_debug_eq(
+        &darling::ast::Fields::<super::options::FieldOptions>::try_from(&syn::Fields::Named(
+            fields,
+        ))
+        .expect("error converting fields")
+        .fields,
+    );
 }
 #[test]
 fn parse_field_attr() {
@@ -387,7 +393,8 @@ fn parse_field_attr() {
                 },
             },
         )
-    "#]].assert_debug_eq(&super::options::FieldOptions::from_field(&field));
+    "#]]
+    .assert_debug_eq(&super::options::FieldOptions::from_field(&field));
 }
 
 #[test]
@@ -704,12 +711,17 @@ fn parse_builder() {
             ],
             build_fn: Simple,
         }
-    "#]].assert_debug_eq(&super::builder::Builder::from(opts));
+    "#]]
+    .assert_debug_eq(&super::builder::Builder::from(opts));
 }
 
 #[test]
 fn builder_tokens() {
-    let builder = super::builder::Builder::from(super::options::Options::from_derive_input(&make_input!(@derive)).expect("Options ok"));
-    expect_file!["./output.rs"].assert_eq(&prettyplease::unparse(&syn::parse2(builder.into_token_stream()).expect("Error parsing output as file contents")));
+    let builder = super::builder::Builder::from(
+        super::options::Options::from_derive_input(&make_input!(@derive)).expect("Options ok"),
+    );
+    //expect_file!["./output_unformatted.rs"].assert_eq(&builder.to_token_stream().to_string());
+    expect_file!["./output.rs"].assert_eq(&prettyplease::unparse(
+        &syn::parse2(builder.into_token_stream()).expect("Error parsing output as file contents"),
+    ));
 }
-

@@ -70,6 +70,18 @@ impl GenericsWrapper<'_> {
     fn push(&mut self, generic: GenericArg) {
         self.fields.push(generic);
     }
+    fn phantom_generics(&self) -> TokenStream {
+        let fields = self
+            .fields
+            .iter()
+            .map(GenericArg::get_ident)
+            .collect::<Vec<_>>();
+        if !fields.is_empty() {
+            quote! { #(#fields),* }
+        } else {
+            TokenStream::new()
+        }
+    }
     fn for_fields<F>(&self, check_req: F) -> (TokenStream, TokenStream, TokenStream)
     where
         F: Fn(usize) -> Option<bool>,
@@ -218,7 +230,7 @@ impl ToTokens for Builder {
             }
             (field_generics, field_defs, field_init, build_assignments)
         });
-
+        let phantom_generics = field_generics.phantom_generics();
         let (built_impl, built_typ, built_where) = generics_inherit.split_for_impl();
         let (generic_impl, _, generic_where) = field_generics.all_generic();
         let (unspec_impl, unspec_typ, unspec_where) = field_generics.all_unspecified();
@@ -228,11 +240,13 @@ impl ToTokens for Builder {
             #(#attrs)*
             #vis struct #name #generic_impl #generic_where {
                 #(#field_defs)*
+                _phantom_builder_tags: core::marker::PhantomData<(#phantom_generics)>,
             }
             impl #unspec_impl Default for #name #unspec_typ #unspec_where {
                 fn default() -> Self {
                     Self {
                         #(#fields_init)*
+                        _phantom_builder_tags: core::marker::PhantomData,
                     }
                 }
             }
@@ -272,7 +286,7 @@ impl ToTokens for Builder {
             }),
             BuildFnDef::TryInto => tokens.extend(quote! {
                 impl #spec_impl #name #spec_typ #spec_where {
-                    pub fn build(self) -> Result<#built #built_typ, <Self as TryInto<Built>>::Err> {
+                    pub fn build(self) -> Result<#built #built_typ, <Self as TryInto<Built>>::Error> {
                         self.try_into()
                     }
                 }
@@ -290,44 +304,48 @@ impl ToTokens for Builder {
             } else {
                 field_generics.for_fields(|i| if i == idx { Some(false) } else { None })
             };
-            let (_, out_typ, _) =
+            let (out_impl, out_typ, _) =
                 field_generics.for_fields(|i| if i == idx { Some(true) } else { None });
             let (set_prop, try_set_prop) = match setter.required {
-                FieldRequirement::Defaulted => (quote!{ value.into() }, quote!{ value.try_into()? }),
-                _ => (quote! { Some(value.into()) }, quote! { Some(value.try_into()?) }),
+                FieldRequirement::Defaulted => {
+                    (quote! { value.into() }, quote! { value.try_into()? })
+                }
+                _ => (
+                    quote! { Some(value.into()) },
+                    quote! { Some(value.try_into()?) },
+                ),
             };
             let fn_owned = setter.setter_ident_owned.as_ref().map(|ident| {
                 quote! {
                     pub fn #ident (self, value: impl Into<#typ>) -> #name #out_typ {
                         #name {
-                            #(#props,)*
+                            #(#props: self.#props,)*
                             #prop: #set_prop,
+                            _phantom_builder_tags: core::marker::PhantomData,
                         }
                     }
                 }
             });
             let fn_borrowed = setter.setter_ident_borrowed.as_ref().map(|ident| {
                 quote! {
-                    pub fn #ident (&mut self, value: impl Into<#typ>) -> #name #out_typ {
-                        #name {
-                            #(#props,)*
-                            #prop: #set_prop,
-                        }
+                    pub fn #ident (&mut self, value: impl Into<#typ>) -> &mut Self {
+                        self.#prop = #set_prop;
+                        self
                     }
                 }
             });
             let fn_try = setter.setter_ident_try.as_ref().map(|ident| quote! {
-                pub fn #ident <ValueInto: TryInto<#typ>>(&mut self, value: ValueInto) -> Result<(), ValueInto::Err> {
-                    Ok(#name {
-                        #(#props,)*
-                        #prop: #try_set_prop,
-                    })
+                pub fn #ident <ValueInto: TryInto<#typ>>(&mut self, value: ValueInto) -> Result<(), ValueInto::Error> {
+                    self.#prop = #try_set_prop;
+                    Ok(())
                 }
             });
             if fn_owned.is_some() || fn_borrowed.is_some() || fn_try.is_some() {
                 tokens.extend(quote! {
                     impl #in_impl #name #in_typ #in_where {
                         #fn_owned
+                    }
+                    impl #out_impl #name #out_typ #in_where {
                         #fn_borrowed
                         #fn_try
                     }
@@ -344,7 +362,7 @@ impl From<crate::options::Options> for Builder {
             .take_struct()
             .unwrap_or_else(|| abort_call_site!("Cannot derive builder for enums"));
         let derives = &*value.derive;
-        let mut attrs = Vec::new();//value.attrs;
+        let mut attrs = Vec::new(); //value.attrs;
         if !derives.is_empty() {
             // TODO: use span from derives?
             match Attribute::parse_outer.parse2(quote! { #[derive(#(#derives),*)]}) {

@@ -2,6 +2,7 @@
 struct FooBuilder<Bar, Baz> {
     bar: Option<bool>,
     baz: Option<Vec<u8>>,
+    _phantom_builder_tags: core::marker::PhantomData<(Bar, Baz)>,
 }
 impl Default
 for FooBuilder<
@@ -9,7 +10,11 @@ for FooBuilder<
     ::derive_tagged_builder::UnspecifiedProperty,
 > {
     fn default() -> Self {
-        Self { bar: None, baz: None }
+        Self {
+            bar: None,
+            baz: None,
+            _phantom_builder_tags: core::marker::PhantomData,
+        }
     }
 }
 impl FooBuilder<
@@ -59,27 +64,23 @@ impl<Baz> FooBuilder<::derive_tagged_builder::UnspecifiedProperty, Baz> {
         value: impl Into<bool>,
     ) -> FooBuilder<::derive_tagged_builder::SpecifiedProperty, Baz> {
         FooBuilder {
-            baz,
+            baz: self.baz,
             bar: Some(value.into()),
+            _phantom_builder_tags: core::marker::PhantomData,
         }
     }
-    pub fn set_bar(
-        &mut self,
-        value: impl Into<bool>,
-    ) -> FooBuilder<::derive_tagged_builder::SpecifiedProperty, Baz> {
-        FooBuilder {
-            baz,
-            bar: Some(value.into()),
-        }
+}
+impl<Baz> FooBuilder<::derive_tagged_builder::SpecifiedProperty, Baz> {
+    pub fn set_bar(&mut self, value: impl Into<bool>) -> &mut Self {
+        self.bar = Some(value.into());
+        self
     }
     pub fn try_set_bar<ValueInto: TryInto<bool>>(
         &mut self,
         value: ValueInto,
-    ) -> Result<(), ValueInto::Err> {
-        Ok(FooBuilder {
-            baz,
-            bar: Some(value.try_into()?),
-        })
+    ) -> Result<(), ValueInto::Error> {
+        self.bar = Some(value.try_into()?);
+        Ok(())
     }
 }
 impl<Bar> FooBuilder<Bar, ::derive_tagged_builder::UnspecifiedProperty> {
@@ -88,26 +89,22 @@ impl<Bar> FooBuilder<Bar, ::derive_tagged_builder::UnspecifiedProperty> {
         value: impl Into<Vec<u8>>,
     ) -> FooBuilder<Bar, ::derive_tagged_builder::SpecifiedProperty> {
         FooBuilder {
-            bar,
+            bar: self.bar,
             baz: Some(value.into()),
+            _phantom_builder_tags: core::marker::PhantomData,
         }
     }
-    pub fn set_baz(
-        &mut self,
-        value: impl Into<Vec<u8>>,
-    ) -> FooBuilder<Bar, ::derive_tagged_builder::SpecifiedProperty> {
-        FooBuilder {
-            bar,
-            baz: Some(value.into()),
-        }
+}
+impl<Bar> FooBuilder<Bar, ::derive_tagged_builder::SpecifiedProperty> {
+    pub fn set_baz(&mut self, value: impl Into<Vec<u8>>) -> &mut Self {
+        self.baz = Some(value.into());
+        self
     }
     pub fn try_set_baz<ValueInto: TryInto<Vec<u8>>>(
         &mut self,
         value: ValueInto,
-    ) -> Result<(), ValueInto::Err> {
-        Ok(FooBuilder {
-            bar,
-            baz: Some(value.try_into()?),
-        })
+    ) -> Result<(), ValueInto::Error> {
+        self.baz = Some(value.try_into()?);
+        Ok(())
     }
 }

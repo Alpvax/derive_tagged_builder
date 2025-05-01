@@ -1,6 +1,5 @@
+use derive_tagged_builder::TaggedBuilder;
 use expect_test::expect;
-
-use crate::TaggedBuilder;
 
 #[test]
 fn test_derive() {
@@ -13,5 +12,11 @@ fn test_derive() {
         baz: Vec<u8>,
     }
 
-    expect![""].assert_debug_eq(&FooBuilder::new().bar(true).baz(Vec::new()).build())
+    expect![[r#"
+        Foo {
+            bar: true,
+            baz: [],
+        }
+    "#]]
+    .assert_debug_eq(&FooBuilder::new().bar(true).baz(Vec::new()).build())
 }
